@@ -1,0 +1,530 @@
+/* Toggle button uses .uishortcuts-gallery-btn styling from styles.css */
+
+/* ========================================
+   GELBOORU TAB CONTAINER
+   ======================================== */
+.uishortcuts-gelbooru-tab {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ========================================
+   SEARCH BAR
+   ======================================== */
+.uishortcuts-gelbooru-search-bar {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+    position: relative;
+}
+
+.uishortcuts-gelbooru-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--black20a, rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 6px;
+    padding: 4px 8px;
+    transition: border-color 0.15s ease;
+}
+
+.uishortcuts-gelbooru-input-wrap:focus-within {
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-gelbooru-input-wrap i {
+    color: var(--SmartThemeEmColor, #888);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.uishortcuts-gelbooru-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    font-size: 0.8rem;
+    padding: 2px 0;
+    min-width: 0;
+}
+
+.uishortcuts-gelbooru-input::placeholder {
+    color: var(--SmartThemeEmColor, #666);
+}
+
+.uishortcuts-gelbooru-clear {
+    background: none;
+    border: none;
+    color: var(--SmartThemeEmColor, #888);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 0.65rem;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.uishortcuts-gelbooru-clear:hover {
+    opacity: 1;
+    color: #ff6b6b;
+}
+
+.uishortcuts-gelbooru-filters {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.uishortcuts-gelbooru-rating {
+    flex: 1;
+    background: var(--black20a, rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    font-size: 0.7rem;
+    padding: 3px 6px;
+    cursor: pointer;
+    outline: none;
+}
+
+.uishortcuts-gelbooru-rating option {
+    background: var(--SmartThemeBlurTintColor, #222);
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+}
+
+.uishortcuts-gelbooru-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border: none;
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+    white-space: nowrap;
+}
+
+.uishortcuts-gelbooru-search-btn:hover {
+    filter: brightness(1.15);
+}
+
+.uishortcuts-gelbooru-search-btn:active {
+    transform: scale(0.97);
+}
+
+/* ========================================
+   AUTOCOMPLETE DROPDOWN
+   ======================================== */
+.uishortcuts-gelbooru-autocomplete {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 8px;
+    right: 8px;
+    z-index: 100;
+    background: var(--SmartThemeBlurTintColor, #1e1e1e);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.uishortcuts-gelbooru-ac-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    transition: background 0.1s ease;
+}
+
+.uishortcuts-gelbooru-ac-item:hover {
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+}
+
+.uishortcuts-gelbooru-ac-item .ac-name b {
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-gelbooru-ac-item:hover .ac-name b {
+    color: white;
+}
+
+.uishortcuts-gelbooru-ac-item .ac-count {
+    color: var(--SmartThemeEmColor, #888);
+    font-size: 0.65rem;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.uishortcuts-gelbooru-ac-item:hover .ac-count {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ========================================
+   RESULTS AREA
+   ======================================== */
+.uishortcuts-gelbooru-results {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+}
+
+.uishortcuts-gelbooru-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 6px;
+    padding: 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--SmartThemeQuoteColor, #4a9eff) transparent;
+}
+
+.uishortcuts-gelbooru-grid::-webkit-scrollbar {
+    width: 4px;
+}
+
+.uishortcuts-gelbooru-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.uishortcuts-gelbooru-grid::-webkit-scrollbar-thumb {
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    border-radius: 2px;
+}
+
+.uishortcuts-gelbooru-grid-item {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    background: var(--black20a, rgba(0, 0, 0, 0.2));
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+}
+
+.uishortcuts-gelbooru-grid-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.uishortcuts-gelbooru-grid-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Rating badges */
+.uishortcuts-gelbooru-rating-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+.rating-general { background: rgba(34, 139, 34, 0.85); }
+.rating-sensitive { background: rgba(218, 165, 32, 0.85); }
+.rating-questionable { background: rgba(255, 140, 0, 0.85); }
+.rating-explicit { background: rgba(220, 20, 60, 0.85); }
+.rating-unknown { background: rgba(128, 128, 128, 0.85); }
+
+/* Empty / Loading / Error states */
+.uishortcuts-gelbooru-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    color: var(--SmartThemeEmColor, #666);
+    padding: 20px;
+}
+
+.uishortcuts-gelbooru-empty i {
+    font-size: 2rem;
+    opacity: 0.4;
+}
+
+.uishortcuts-gelbooru-empty p {
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.uishortcuts-gelbooru-loader {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-gelbooru-loader i {
+    font-size: 1.5rem;
+}
+
+.uishortcuts-gelbooru-loader span {
+    font-size: 0.75rem;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.uishortcuts-gelbooru-error {
+    display: none;
+    padding: 8px 12px;
+    margin: 6px;
+    background: rgba(220, 20, 60, 0.15);
+    border: 1px solid rgba(220, 20, 60, 0.3);
+    border-radius: 6px;
+    color: #ff6b6b;
+    font-size: 0.75rem;
+}
+
+/* ========================================
+   PAGINATION
+   ======================================== */
+.uishortcuts-gelbooru-pagination {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 6px 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+}
+
+.uishortcuts-gelbooru-page-prev,
+.uishortcuts-gelbooru-page-next {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    background: var(--black20a, rgba(0, 0, 0, 0.2));
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+}
+
+.uishortcuts-gelbooru-page-prev:hover:not(:disabled),
+.uishortcuts-gelbooru-page-next:hover:not(:disabled) {
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-gelbooru-page-prev:disabled,
+.uishortcuts-gelbooru-page-next:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.uishortcuts-gelbooru-page-info {
+    font-size: 0.7rem;
+    color: var(--SmartThemeEmColor, #888);
+    white-space: nowrap;
+}
+
+/* ========================================
+   PREVIEW OVERLAY
+   ======================================== */
+.uishortcuts-gelbooru-preview-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    display: none;
+    flex-direction: column;
+}
+
+.uishortcuts-gelbooru-preview-overlay.active {
+    display: flex;
+}
+
+.uishortcuts-gelbooru-preview-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.uishortcuts-gelbooru-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    flex-shrink: 0;
+}
+
+.uishortcuts-gelbooru-preview-dims {
+    font-size: 0.7rem;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.uishortcuts-gelbooru-preview-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.uishortcuts-gelbooru-save-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: none;
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+    white-space: nowrap;
+}
+
+.uishortcuts-gelbooru-save-btn:hover:not(:disabled) {
+    filter: brightness(1.15);
+}
+
+.uishortcuts-gelbooru-save-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.uishortcuts-gelbooru-open-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid rgba(255, 165, 0, 0.35);
+    background: rgba(255, 165, 0, 0.15);
+    color: #ffb347;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+    white-space: nowrap;
+}
+
+.uishortcuts-gelbooru-open-btn:hover {
+    background: rgba(255, 165, 0, 0.3);
+    border-color: rgba(255, 165, 0, 0.5);
+    color: #ffc870;
+}
+
+.uishortcuts-gelbooru-preview-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: var(--black30a, rgba(0, 0, 0, 0.3));
+    border-radius: 4px;
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, #a0a0a0));
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+}
+
+.uishortcuts-gelbooru-preview-close:hover {
+    background: rgba(255, 100, 100, 0.3);
+    color: #ff6b6b;
+}
+
+.uishortcuts-gelbooru-preview-image-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+}
+
+.uishortcuts-gelbooru-preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    transition: opacity 0.15s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+    transform-origin: center center;
+    will-change: transform;
+    touch-action: none;
+}
+
+.uishortcuts-gelbooru-preview-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-gelbooru-preview-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+    max-height: 80px;
+    overflow-y: auto;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--SmartThemeQuoteColor, #4a9eff) transparent;
+}
+
+.uishortcuts-gelbooru-tag {
+    padding: 2px 6px;
+    background: var(--black20a, rgba(0, 0, 0, 0.3));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    border-radius: 3px;
+    font-size: 0.6rem;
+    color: var(--SmartThemeEmColor, #aaa);
+    cursor: pointer;
+    transition: var(--uishortcuts-transition, all 0.15s ease);
+    white-space: nowrap;
+}
+
+.uishortcuts-gelbooru-tag:hover {
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}

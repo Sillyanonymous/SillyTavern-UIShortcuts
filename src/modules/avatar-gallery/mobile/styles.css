@@ -1,0 +1,125 @@
+/* ========================================
+   AVATAR GALLERY - MOBILE OVERRIDES
+   ======================================== */
+@media (pointer: coarse), (max-width: 900px) {
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile {
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important; /* respects mobile browser chrome */
+        max-width: none !important;
+        max-height: none !important;
+        background: rgba(12, 12, 16, 0.97);
+        border-radius: 0 !important;
+        resize: none !important;
+        transform: none !important;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+        cursor: default;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-title {
+        font-size: 0.95rem;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-controls {
+        gap: 8px;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-close,
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-content {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-image-wrapper {
+        min-height: 0;
+        touch-action: none;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-nav {
+        display: none;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumbnails {
+        height: 84px;
+        padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumbnails-scroll {
+        scroll-snap-type: x mandatory;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumb {
+        width: 64px;
+        scroll-snap-align: center;
+        opacity: 0.8;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumb.active {
+        opacity: 1;
+        border-width: 3px;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-resize-hint {
+        display: none;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-swipe-hint {
+        position: absolute;
+        bottom: calc(96px + env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        z-index: 5;
+        pointer-events: none;
+        opacity: 0.9;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-swipe-hint.hidden {
+        opacity: 0;
+        transform: translate(-50%, 6px);
+    }
+
+    /* ── Gelbooru tab mobile overrides ── */
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gelbooru-tab {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gelbooru-pagination {
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gelbooru-preview-panel {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gelbooru-preview-tags {
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    }
+
+    body.uishortcuts-gallery-mobile-open {
+        overflow: hidden;
+        touch-action: none;
+    }
+}

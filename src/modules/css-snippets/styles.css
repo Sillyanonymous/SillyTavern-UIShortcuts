@@ -1,0 +1,369 @@
+/* ========================================
+   CSS SNIPPETS MODULE STYLES
+   ======================================== */
+
+/* ---- Panel inside settings ---- */
+.uishortcuts-snippets-panel {
+    margin-top: 10px;
+}
+
+.uishortcuts-snippets-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.uishortcuts-snippets-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+}
+
+.uishortcuts-snippets-count {
+    font-size: 0.7rem;
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-weight: 600;
+}
+
+.uishortcuts-snippets-toolbar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.uishortcuts-snippets-btn {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.uishortcuts-snippets-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-snippets-btn.primary {
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: #fff;
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-snippets-btn.primary:hover {
+    filter: brightness(1.15);
+}
+
+/* ---- Snippet list ---- */
+.uishortcuts-snippets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.uishortcuts-snippet-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 7px 10px;
+    transition: border-color 0.15s;
+}
+
+.uishortcuts-snippet-item:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.uishortcuts-snippet-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.uishortcuts-snippet-toggle input[type="checkbox"] {
+    accent-color: var(--SmartThemeQuoteColor, #4a9eff);
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+}
+
+.uishortcuts-snippet-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.uishortcuts-snippet-name {
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+}
+
+.uishortcuts-snippets-badge {
+    font-size: 0.65rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--SmartThemeEmColor, #9aa0a6);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.uishortcuts-snippet-desc {
+    font-size: 0.75rem;
+    color: var(--SmartThemeEmColor, #9aa0a6);
+    margin-top: 3px;
+    line-height: 1.3;
+}
+
+.uishortcuts-snippet-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.uishortcuts-snippets-action {
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--SmartThemeEmColor, #9aa0a6);
+    border-radius: 5px;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.uishortcuts-snippets-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+}
+
+.uishortcuts-snippets-action[data-action="delete"]:hover {
+    background: rgba(255, 80, 80, 0.2);
+    color: #ff6b6b;
+}
+
+/* ---- Editor overlay (uses <dialog> for top-layer stacking) ---- */
+dialog.uishortcuts-snippet-editor-overlay {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    margin: 0;
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+dialog.uishortcuts-snippet-editor-overlay::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.uishortcuts-snippet-editor {
+    background: var(--SmartThemeBlurTintColor, #1e1e1e);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    border-radius: 14px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+}
+
+.uishortcuts-snippet-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+.uishortcuts-snippet-editor-close {
+    border: none;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--SmartThemeEmColor, #a0a0a0);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.uishortcuts-snippet-editor-close:hover {
+    background: rgba(255, 100, 100, 0.2);
+    color: #ff6b6b;
+}
+
+.uishortcuts-snippet-editor-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+}
+
+.uishortcuts-snippet-editor-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--SmartThemeEmColor, #9aa0a6);
+    margin-top: 4px;
+}
+
+.uishortcuts-snippet-editor-label small {
+    opacity: 0.7;
+}
+
+.uishortcuts-snippet-editor-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.uishortcuts-snippet-editor-input:focus {
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-snippet-editor-textarea {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    font-family: 'Consolas', 'Monaco', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    min-height: 160px;
+    resize: vertical;
+    outline: none;
+    tab-size: 4;
+    transition: border-color 0.15s;
+}
+
+.uishortcuts-snippet-editor-textarea:focus {
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-snippet-editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+/* ========================================
+   MOBILE OVERRIDES
+   ======================================== */
+@media (max-width: 768px) {
+    /* Overlay: fill screen, allow scroll when keyboard is open */
+    dialog.uishortcuts-snippet-editor-overlay {
+        padding: 8px;
+        align-items: flex-start;
+        padding-top: env(safe-area-inset-top, 8px);
+    }
+
+    /* Editor: full-width, taller, scroll inside body */
+    .uishortcuts-snippet-editor {
+        max-width: 100%;
+        max-height: none;
+        border-radius: 10px;
+        margin-bottom: env(safe-area-inset-bottom, 8px);
+    }
+
+    .uishortcuts-snippet-editor-body {
+        padding: 12px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Smaller textarea on mobile — less wasted space */
+    .uishortcuts-snippet-editor-textarea {
+        min-height: 100px;
+        font-size: 0.8rem;
+    }
+
+    /* Larger tap targets for inputs */
+    .uishortcuts-snippet-editor-input {
+        padding: 10px 12px;
+        font-size: 16px; /* prevents iOS zoom on focus */
+    }
+
+    .uishortcuts-snippet-editor-footer {
+        padding: 10px 12px;
+    }
+
+    /* Bigger footer buttons for easier tapping */
+    .uishortcuts-snippet-editor-footer .uishortcuts-snippets-btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    /* Bigger action icons for touch */
+    .uishortcuts-snippets-action {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+
+    /* Toolbar: ensure wrapping looks good */
+    .uishortcuts-snippets-toolbar {
+        gap: 8px;
+    }
+
+    .uishortcuts-snippets-btn {
+        padding: 6px 12px;
+        font-size: 0.82rem;
+    }
+
+    /* Snippet row: wrap info + actions on narrow screens */
+    .uishortcuts-snippet-row {
+        flex-wrap: wrap;
+    }
+
+    .uishortcuts-snippet-info {
+        flex: 1 1 0;
+        min-width: 120px;
+    }
+
+    .uishortcuts-snippet-actions {
+        margin-left: auto;
+    }
+}

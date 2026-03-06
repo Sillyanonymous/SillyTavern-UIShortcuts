@@ -1,0 +1,9 @@
+{
+    "display_name": "UI Shortcuts",
+    "author": "Anonymous",
+    "version": "1.1.0",
+    "license": "AGPL-3.0",
+    "description": "Miscellaneous UI changes and enhancements for SillyTavern, including an enhanced avatar gallery selector with Gelbooru image search.",
+    "js": "index.js",
+    "css": "styles.css"
+}
