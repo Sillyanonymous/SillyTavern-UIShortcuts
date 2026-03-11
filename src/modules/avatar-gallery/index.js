@@ -8,6 +8,7 @@ import {
     getCharacterAvatarUrl, 
     sanitizeFolderName, 
     isImageFile,
+    isVideoFile,
     fetchWithCsrf,
     log 
 } from '../../utils.js';
@@ -27,6 +28,41 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
 });
+
+// Capture a thumbnail frame from a video URL, returns a JPEG data URL or null
+function captureVideoThumbnail(src) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.preload = 'metadata';
+        video.crossOrigin = 'anonymous';
+
+        const cleanup = () => { video.src = ''; video.load(); };
+
+        video.addEventListener('error', () => { cleanup(); resolve(null); }, { once: true });
+
+        video.addEventListener('loadedmetadata', () => {
+            // Seek to 1s or 10% of duration, whichever is smaller
+            video.currentTime = Math.min(1, video.duration * 0.1);
+        }, { once: true });
+
+        video.addEventListener('seeked', () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 180;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            } catch {
+                resolve(null);
+            } finally {
+                cleanup();
+            }
+        }, { once: true });
+
+        video.src = src;
+    });
+}
 
 export class AvatarGallerySelector {
     constructor() {
@@ -59,6 +95,10 @@ export class AvatarGallerySelector {
         this.wasPanning = false;
         this.panStart = { x: 0, y: 0 };
         this.panOffset = { x: 0, y: 0 };
+
+        // Video playback state
+        this._videoEl = null;
+        this._mainImgEl = null; // Stable reference to the persistent <img> element
         
         // Resize observer
         this.resizeObserver = null;
@@ -227,6 +267,7 @@ export class AvatarGallerySelector {
         const notesOverlay = this.panel.querySelector('.uishortcuts-gallery-notes-overlay');
         const gridBtn = this.panel.querySelector('.uishortcuts-gallery-grid');
         const mainImg = this.panel.querySelector('.uishortcuts-gallery-main-image');
+        this._mainImgEl = mainImg;
         const imageWrapper = this.panel.querySelector('.uishortcuts-gallery-image-wrapper');
         const header = this.panel.querySelector('.uishortcuts-gallery-header');
 
@@ -336,11 +377,9 @@ export class AvatarGallerySelector {
             this.wasPanning = false;
             return;
         }
-        // Only toggle expand if not zoomed, otherwise reset zoom
+        // Reset zoom on click when already zoomed; otherwise no-op
         if (this.zoomLevel !== 1) {
             this.resetZoom();
-        } else {
-            this.toggleExpand();
         }
     }
 
@@ -568,7 +607,7 @@ export class AvatarGallerySelector {
             const response = await fetchWithCsrf('/api/images/list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ folder: folderName })
+                body: JSON.stringify({ folder: folderName, type: 7 })
             });
             
             if (response.ok) {
@@ -576,7 +615,7 @@ export class AvatarGallerySelector {
                 if (Array.isArray(files) && files.length > 0) {
                     for (const file of files) {
                         const fileName = (typeof file === 'string') ? file : file.name;
-                        if (fileName && isImageFile(fileName)) {
+                        if (fileName && (isImageFile(fileName) || isVideoFile(fileName))) {
                             const imagePath = `/user/images/${encodeURIComponent(folderName)}/${encodeURIComponent(fileName)}`;
                             this.currentImages.push(imagePath);
                         }
@@ -592,7 +631,7 @@ export class AvatarGallerySelector {
             const assets = character.data.extensions.assets;
             if (Array.isArray(assets)) {
                 for (const asset of assets) {
-                    if (asset.uri && isImageFile(asset.uri)) {
+                    if (asset.uri && (isImageFile(asset.uri) || isVideoFile(asset.uri))) {
                         this.currentImages.push(asset.uri);
                     }
                 }
@@ -652,6 +691,7 @@ export class AvatarGallerySelector {
 
     close() {
         this.saveState();
+        this._cleanupVideo();
         this.resetZoom();
         this.hideCreatorNotes();
         this.panel.classList.remove('active');
@@ -717,25 +757,58 @@ export class AvatarGallerySelector {
     }
 
     showImage(index) {
-        const mainImg = this.panel.querySelector('.uishortcuts-gallery-main-image');
         const loader = this.panel.querySelector('.uishortcuts-gallery-image-loader');
         const counter = this.panel.querySelector('.uishortcuts-gallery-counter');
-        
-        loader.classList.add('active');
-        mainImg.style.opacity = '0';
-        
-        const img = new Image();
-        img.onload = () => {
-            mainImg.src = this.currentImages[index];
-            mainImg.style.opacity = '1';
+        const src = this.currentImages[index];
+
+        // Clean up any existing video before switching media
+        this._cleanupVideo();
+
+        if (isVideoFile(src)) {
+            // --- VIDEO ---
+            // Hide the static <img>; give the class to <video> so all zoom/pan code finds it
+            this._mainImgEl.classList.remove('uishortcuts-gallery-main-image');
+            this._mainImgEl.style.display = 'none';
+
+            const video = document.createElement('video');
+            video.className = 'uishortcuts-gallery-main-image';
+            video.src = src;
+            video.controls = true;
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+
+            // Reattach pan/click handlers so zoom and pan work on video too
+            video.addEventListener('click', this.boundHandlers.onImageClick);
+            video.addEventListener('mousedown', this.boundHandlers.onImageMouseDown);
+
+            loader.before(video);
+            this._videoEl = video;
             loader.classList.remove('active');
-        };
-        img.onerror = () => {
-            mainImg.src = this.currentImages[index];
-            mainImg.style.opacity = '0.5';
-            loader.classList.remove('active');
-        };
-        img.src = this.currentImages[index];
+        } else {
+            // --- IMAGE ---
+            const mainImg = this._mainImgEl;
+
+            // Preload the new image — keep the current one visible while loading
+            const img = new Image();
+            img.onload = () => {
+                mainImg.src = src;
+                mainImg.style.opacity = '1';
+                loader.classList.remove('active');
+            };
+            img.onerror = () => {
+                mainImg.src = src;
+                mainImg.style.opacity = '0.5';
+                loader.classList.remove('active');
+            };
+            img.src = src;
+
+            // If already cached, swap instantly. Otherwise show spinner over current image.
+            if (!img.complete) {
+                loader.classList.add('active');
+            }
+        }
 
         const characterKey = this.currentCharacter?.avatar || this.currentCharacter?.name;
         this.lastSelectedImage = this.currentImages[index];
@@ -749,6 +822,22 @@ export class AvatarGallerySelector {
         const nextBtn = this.panel.querySelector('.uishortcuts-gallery-next');
         prevBtn.disabled = false;
         nextBtn.disabled = false;
+    }
+
+    _cleanupVideo() {
+        if (!this._videoEl) return;
+        this._videoEl.pause();
+        this._videoEl.removeAttribute('src');
+        this._videoEl.load(); // Release media resources
+        this._videoEl.removeEventListener('click', this.boundHandlers.onImageClick);
+        this._videoEl.removeEventListener('mousedown', this.boundHandlers.onImageMouseDown);
+        this._videoEl.remove();
+        this._videoEl = null;
+        // Restore the persistent <img> element
+        if (this._mainImgEl) {
+            this._mainImgEl.classList.add('uishortcuts-gallery-main-image');
+            this._mainImgEl.style.display = '';
+        }
     }
 
     // ========================================
@@ -773,12 +862,26 @@ export class AvatarGallerySelector {
                 thumb.classList.add('active');
             }
             
-            const img = document.createElement('img');
-            img.src = src;
-            img.alt = `Thumbnail ${index + 1}`;
-            img.loading = 'lazy';
-            
-            thumb.appendChild(img);
+            if (isVideoFile(src)) {
+                const img = document.createElement('img');
+                img.alt = `Thumbnail ${index + 1}`;
+                img.className = 'uishortcuts-gallery-video-thumb-img';
+                const badge = document.createElement('div');
+                badge.className = 'uishortcuts-gallery-video-thumb-badge';
+                badge.innerHTML = '<i class="fa-solid fa-play"></i>';
+                thumb.appendChild(img);
+                thumb.appendChild(badge);
+                captureVideoThumbnail(src).then(dataUrl => {
+                    if (dataUrl) img.src = dataUrl;
+                    else { img.remove(); badge.className = 'uishortcuts-gallery-video-thumb-icon'; badge.innerHTML = '<i class="fa-solid fa-film"></i>'; }
+                });
+            } else {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = `Thumbnail ${index + 1}`;
+                img.loading = 'lazy';
+                thumb.appendChild(img);
+            }
             thumb.addEventListener('click', () => {
                 this.selectedIndex = index;
                 this.resetZoom();
@@ -825,12 +928,26 @@ export class AvatarGallerySelector {
                 item.classList.add('active');
             }
             
-            const img = document.createElement('img');
-            img.src = src;
-            img.alt = `Image ${index + 1}`;
-            img.loading = 'lazy';
-            
-            item.appendChild(img);
+            if (isVideoFile(src)) {
+                const img = document.createElement('img');
+                img.alt = `Image ${index + 1}`;
+                img.className = 'uishortcuts-gallery-video-thumb-img';
+                const badge = document.createElement('div');
+                badge.className = 'uishortcuts-gallery-video-thumb-badge';
+                badge.innerHTML = '<i class="fa-solid fa-play"></i>';
+                item.appendChild(img);
+                item.appendChild(badge);
+                captureVideoThumbnail(src).then(dataUrl => {
+                    if (dataUrl) img.src = dataUrl;
+                    else { img.remove(); badge.className = 'uishortcuts-gallery-video-thumb-icon'; badge.innerHTML = '<i class="fa-solid fa-film"></i>'; }
+                });
+            } else {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = `Image ${index + 1}`;
+                img.loading = 'lazy';
+                item.appendChild(img);
+            }
             item.addEventListener('click', () => {
                 this.selectedIndex = index;
                 this.showImage(index);
@@ -1001,20 +1118,21 @@ export class AvatarGallerySelector {
 
     async handleFileDrop(e) {
         if (!this.currentCharacter) {
-            log('No character selected for image upload', 'warn');
+            log('No character selected for media upload', 'warn');
             return;
         }
         
         const files = e.dataTransfer?.files;
         if (!files || files.length === 0) return;
         
-        // Filter to only image files
-        const imageFiles = Array.from(files).filter(file => 
-            file.type.startsWith('image/') || isImageFile(file.name)
+        // Filter to image and video files
+        const mediaFiles = Array.from(files).filter(file => 
+            file.type.startsWith('image/') || file.type.startsWith('video/') ||
+            isImageFile(file.name) || isVideoFile(file.name)
         );
         
-        if (imageFiles.length === 0) {
-            log('No image files detected in drop', 'warn');
+        if (mediaFiles.length === 0) {
+            log('No image or video files detected in drop', 'warn');
             return;
         }
         
@@ -1023,19 +1141,19 @@ export class AvatarGallerySelector {
         loader.classList.add('active');
         
         try {
-            const results = await this.uploadImages(imageFiles);
+            const results = await this.uploadImages(mediaFiles);
             
             if (results.success > 0) {
-                log(`Uploaded ${results.success} image(s) to gallery`);
-                // Refresh the gallery to show new images
+                log(`Uploaded ${results.success} file(s) to gallery`);
+                // Refresh the gallery to show new files
                 await this.refreshGallery();
             }
             
             if (results.errors > 0) {
-                log(`Failed to upload ${results.errors} image(s)`, 'warn');
+                log(`Failed to upload ${results.errors} file(s)`, 'warn');
             }
         } catch (err) {
-            log('Error uploading images: ' + err.message, 'error');
+            log('Error uploading media: ' + err.message, 'error');
         } finally {
             loader.classList.remove('active');
         }
@@ -1142,6 +1260,7 @@ export class AvatarGallerySelector {
     // ========================================
 
     destroy() {
+        this._cleanupVideo();
         if (this.mobileCleanup) {
             this.mobileCleanup();
         }
@@ -1157,7 +1276,7 @@ export class AvatarGallerySelector {
             const notesCloseBtn = this.panel.querySelector('.uishortcuts-gallery-notes-close');
             const notesOverlay = this.panel.querySelector('.uishortcuts-gallery-notes-overlay');
             const gridBtn = this.panel.querySelector('.uishortcuts-gallery-grid');
-            const mainImg = this.panel.querySelector('.uishortcuts-gallery-main-image');
+            const mainImg = this._mainImgEl;
             const imageWrapper = this.panel.querySelector('.uishortcuts-gallery-image-wrapper');
             const header = this.panel.querySelector('.uishortcuts-gallery-header');
             const content = this.panel.querySelector('.uishortcuts-gallery-content');

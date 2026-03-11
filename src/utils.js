@@ -67,6 +67,17 @@ export function isImageFile(filename) {
 }
 
 /**
+ * Check if a filename is a video file
+ * @param {string} filename - The filename to check
+ * @returns {boolean} True if the file is a video
+ */
+export function isVideoFile(filename) {
+    const videoExtensions = ['.mp4', '.webm', '.ogv', '.mov'];
+    const lowerName = filename.toLowerCase();
+    return videoExtensions.some(ext => lowerName.endsWith(ext));
+}
+
+/**
  * Fetch with CSRF token support
  * @param {string} url - The URL to fetch
  * @param {object} options - Fetch options

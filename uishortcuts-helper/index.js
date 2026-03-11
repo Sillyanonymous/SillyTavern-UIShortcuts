@@ -78,9 +78,10 @@ export async function init(router) {
                 return res.status(400).json({ error: 'Missing or invalid "url" parameter' });
             }
 
-            // Only allow Gelbooru domains
+            // Only allow Gelbooru domains (img* for images, video-cdn* for videos)
             const parsed = new URL(url);
-            const allowed = ['gelbooru.com', 'img2.gelbooru.com', 'img3.gelbooru.com', 'img4.gelbooru.com'];
+            const allowed = ['gelbooru.com', 'img2.gelbooru.com', 'img3.gelbooru.com', 'img4.gelbooru.com',
+                'video-cdn1.gelbooru.com', 'video-cdn2.gelbooru.com', 'video-cdn3.gelbooru.com'];
             if (!allowed.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d))) {
                 return res.status(403).json({ error: 'URL not from an allowed Gelbooru domain' });
             }
@@ -120,6 +121,48 @@ export async function init(router) {
         } catch (err) {
             console.error('[UIShortcuts] Gelbooru download error:', err.message);
             return res.status(500).json({ error: 'Image download failed' });
+        }
+    });
+
+    // ── Gelbooru media streaming proxy (for video/large media) ─────
+    router.get('/gelbooru/stream', async (req, res) => {
+        try {
+            const { url } = req.query;
+
+            if (!url || typeof url !== 'string') {
+                return res.status(400).json({ error: 'Missing or invalid "url" parameter' });
+            }
+
+            // Only allow Gelbooru domains
+            const parsed = new URL(url);
+            const allowed = ['gelbooru.com', 'img2.gelbooru.com', 'img3.gelbooru.com', 'img4.gelbooru.com',
+                'video-cdn1.gelbooru.com', 'video-cdn2.gelbooru.com', 'video-cdn3.gelbooru.com'];
+            if (!allowed.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d))) {
+                return res.status(403).json({ error: 'URL not from an allowed Gelbooru domain' });
+            }
+
+            const response = await fetch(url, {
+                headers: { 'Referer': 'https://gelbooru.com/' },
+            });
+
+            if (!response.ok) {
+                return res.status(response.status).json({ error: `Upstream returned ${response.status}` });
+            }
+
+            // Forward content headers
+            const ct = response.headers.get('content-type');
+            if (ct) res.setHeader('Content-Type', ct);
+            const cl = response.headers.get('content-length');
+            if (cl) res.setHeader('Content-Length', cl);
+
+            // Buffer and send (reliable across Node versions)
+            const arrayBuf = await response.arrayBuffer();
+            res.end(Buffer.from(arrayBuf));
+        } catch (err) {
+            console.error('[UIShortcuts] Gelbooru stream error:', err.message);
+            if (!res.headersSent) {
+                return res.status(500).json({ error: 'Stream failed' });
+            }
         }
     });
 

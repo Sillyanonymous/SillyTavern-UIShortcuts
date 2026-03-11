@@ -42,8 +42,16 @@ export class GelbooruSearch {
             tapMoved: false,
         };
         this._previewZoom = 1;
+        this._previewZoomMin = 0.5;
+        this._previewZoomMax = 5;
         this._previewPan = { x: 0, y: 0 };
         this._previewPanStart = { x: 0, y: 0 };
+        this._previewWasPanning = false;
+        this._previewMousePanning = false;
+        this._previewController = null;
+
+        // Pinch zoom state
+        this._pinch = { active: false, startDist: 0, startZoom: 1 };
 
         this.container = null;
         this.boundHandlers = {};
@@ -92,6 +100,11 @@ export class GelbooruSearch {
     // ========================================
     // DOM CREATION
     // ========================================
+
+    _isVideoPost(post) {
+        const url = post.file_url || post.sample_url || '';
+        return /\.(mp4|webm)$/i.test(url);
+    }
 
     /**
      * Build the Gelbooru tab content DOM and append it into the gallery panel.
@@ -223,6 +236,11 @@ export class GelbooruSearch {
         this.boundHandlers.onPreviewOverlayClick = (e) => {
             if (e.target === previewOverlay) this.closePreview();
         };
+        // Close preview when clicking the image-wrap background (not the image/video itself)
+        const imgWrap = this.container.querySelector('.uishortcuts-gelbooru-preview-image-wrap');
+        this.boundHandlers.onImgWrapClick = (e) => {
+            if (e.target === imgWrap) this.closePreview();
+        };
         this.boundHandlers.onSave = () => this._saveCurrentPreview();
         this.boundHandlers.onOpen = () => this._openOnGelbooru();
 
@@ -234,6 +252,29 @@ export class GelbooruSearch {
         // Dismiss autocomplete when results grid scrolls
         const grid = this.container.querySelector('.uishortcuts-gelbooru-grid');
         this.boundHandlers.onGridScroll = () => this._hideAutocomplete();
+
+        // Swipe on grid for page navigation
+        this._gridSwipe = { startX: 0, startY: 0, tracking: false };
+        this.boundHandlers.onGridTouchStart = (e) => {
+            if (e.touches.length !== 1) return;
+            this._gridSwipe.startX = e.touches[0].clientX;
+            this._gridSwipe.startY = e.touches[0].clientY;
+            this._gridSwipe.tracking = true;
+        };
+        this.boundHandlers.onGridTouchEnd = (e) => {
+            if (!this._gridSwipe.tracking) return;
+            this._gridSwipe.tracking = false;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - this._gridSwipe.startX;
+            const dy = t.clientY - this._gridSwipe.startY;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+                if (dx < 0 && this.currentPage < Math.ceil(this.totalCount / this.resultsPerPage) - 1) {
+                    this.search(this.currentPage + 1);
+                } else if (dx > 0 && this.currentPage > 0) {
+                    this.search(this.currentPage - 1);
+                }
+            }
+        };
 
         // Dismiss autocomplete on any touch/click outside the search bar
         this.boundHandlers.onContainerPointerDown = (e) => {
@@ -251,17 +292,34 @@ export class GelbooruSearch {
         nextBtn.addEventListener('click', this.boundHandlers.onNext);
         previewClose.addEventListener('click', this.boundHandlers.onPreviewClose);
         previewOverlay.addEventListener('click', this.boundHandlers.onPreviewOverlayClick);
+        imgWrap.addEventListener('click', this.boundHandlers.onImgWrapClick);
         saveBtn.addEventListener('click', this.boundHandlers.onSave);
         openBtn.addEventListener('click', this.boundHandlers.onOpen);
         grid.addEventListener('scroll', this.boundHandlers.onGridScroll, { passive: true });
+        grid.addEventListener('touchstart', this.boundHandlers.onGridTouchStart, { passive: true });
+        grid.addEventListener('touchend', this.boundHandlers.onGridTouchEnd);
         this.container.addEventListener('pointerdown', this.boundHandlers.onContainerPointerDown);
 
+        // Desktop: wheel zoom on preview
+        this.boundHandlers.onPreviewWheel = (e) => this._handlePreviewWheel(e);
+        imgWrap.addEventListener('wheel', this.boundHandlers.onPreviewWheel, { passive: false });
+
+        // Desktop: mouse drag to pan when zoomed
+        const previewImg = this.container.querySelector('.uishortcuts-gelbooru-preview-image');
+        this.boundHandlers.onPreviewMouseDown = (e) => this._startPreviewMousePan(e);
+        this.boundHandlers.onPreviewMouseMove = (e) => this._onPreviewMousePan(e);
+        this.boundHandlers.onPreviewMouseUp = (e) => this._stopPreviewMousePan(e);
+        this.boundHandlers.onPreviewImageClick = (e) => this._handlePreviewImageClick(e);
+        previewImg.addEventListener('mousedown', this.boundHandlers.onPreviewMouseDown);
+        document.addEventListener('mousemove', this.boundHandlers.onPreviewMouseMove);
+        document.addEventListener('mouseup', this.boundHandlers.onPreviewMouseUp);
+        previewImg.addEventListener('click', this.boundHandlers.onPreviewImageClick);
+
         // Preview touch gestures
-        const imgWrap = this.container.querySelector('.uishortcuts-gelbooru-preview-image-wrap');
         this.boundHandlers.onPreviewTouchStart = (e) => this._onPreviewTouchStart(e);
         this.boundHandlers.onPreviewTouchMove = (e) => this._onPreviewTouchMove(e);
         this.boundHandlers.onPreviewTouchEnd = (e) => this._onPreviewTouchEnd(e);
-        imgWrap.addEventListener('touchstart', this.boundHandlers.onPreviewTouchStart, { passive: true });
+        imgWrap.addEventListener('touchstart', this.boundHandlers.onPreviewTouchStart, { passive: false });
         imgWrap.addEventListener('touchmove', this.boundHandlers.onPreviewTouchMove, { passive: false });
         imgWrap.addEventListener('touchend', this.boundHandlers.onPreviewTouchEnd);
         imgWrap.addEventListener('touchcancel', this.boundHandlers.onPreviewTouchEnd);
@@ -413,6 +471,14 @@ export class GelbooruSearch {
 
             item.appendChild(img);
             item.appendChild(badge);
+
+            if (this._isVideoPost(post)) {
+                const videoBadge = document.createElement('span');
+                videoBadge.className = 'uishortcuts-gelbooru-video-badge';
+                videoBadge.innerHTML = '<i class="fa-solid fa-play"></i>';
+                item.appendChild(videoBadge);
+            }
+
             item.addEventListener('click', () => this.openPreview(post));
             grid.appendChild(item);
         }
@@ -450,48 +516,139 @@ export class GelbooruSearch {
     // ========================================
 
     async openPreview(post) {
+        // Abort any in-flight preview fetch
+        if (this._previewController) this._previewController.abort();
+        const controller = new AbortController();
+        this._previewController = controller;
+
         this.previewPost = post;
         this.gallery._pushHistoryState('gelbooru-preview');
         const overlay = this.container.querySelector('.uishortcuts-gelbooru-preview-overlay');
+        const imgWrap = this.container.querySelector('.uishortcuts-gelbooru-preview-image-wrap');
         const img = this.container.querySelector('.uishortcuts-gelbooru-preview-image');
         const loader = this.container.querySelector('.uishortcuts-gelbooru-preview-loader');
         const dims = this.container.querySelector('.uishortcuts-gelbooru-preview-dims');
         const tagsEl = this.container.querySelector('.uishortcuts-gelbooru-preview-tags');
+        const saveBtn = this.container.querySelector('.uishortcuts-gelbooru-save-btn');
 
         // Show overlay
         overlay.classList.add('active');
 
-        // Show loader, use thumbnail as immediate placeholder
-        loader.style.display = 'flex';
-        img.style.opacity = '0';
-        img.src = post.preview_url || '';
+        // Clean up any previous video element
+        const oldVideo = imgWrap.querySelector('.uishortcuts-gelbooru-preview-video');
+        if (oldVideo) { oldVideo.pause(); oldVideo.src = ''; oldVideo.remove(); }
 
-        // Load full-res image via server proxy (Gelbooru CDN blocks direct browser access)
-        const fullUrl = post.file_url || post.sample_url || '';
-        if (fullUrl) {
-            try {
-                const dlResp = await fetchWithCsrf(`${PLUGIN_BASE}/gelbooru/download`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: fullUrl }),
-                });
-                if (dlResp.ok) {
-                    const { base64, contentType } = await dlResp.json();
-                    if (base64) {
-                        img.src = `data:${contentType};base64,${base64}`;
+        const isVideo = this._isVideoPost(post);
+
+        if (isVideo) {
+            // Video post: show <video> element
+            img.style.display = 'none';
+            loader.style.display = 'flex';
+
+            const video = document.createElement('video');
+            video.className = 'uishortcuts-gelbooru-preview-video';
+            video.controls = true;
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+
+            const fullUrl = post.file_url || post.sample_url || '';
+            if (fullUrl) {
+                // Try streaming endpoint first (fast), fall back to base64 download
+                try {
+                    const streamResp = await fetchWithCsrf(`${PLUGIN_BASE}/gelbooru/stream?url=${encodeURIComponent(fullUrl)}`, {
+                        signal: controller.signal,
+                    });
+                    if (controller.signal.aborted) return;
+                    if (streamResp.ok) {
+                        const blob = await streamResp.blob();
+                        if (controller.signal.aborted) return;
+                        const objUrl = URL.createObjectURL(blob);
+                        video.src = objUrl;
+                        video.addEventListener('emptied', () => URL.revokeObjectURL(objUrl), { once: true });
+                    } else {
+                        throw new Error('stream unavailable');
                     }
-                } else {
-                    const errBody = await dlResp.text().catch(() => '');
-                    log(`Preview proxy error (${dlResp.status}): ${errBody}`, 'warn');
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    // Fallback: download as base64 via POST proxy
+                    try {
+                        const dlResp = await fetchWithCsrf(`${PLUGIN_BASE}/gelbooru/download`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: fullUrl }),
+                            signal: controller.signal,
+                        });
+                        if (controller.signal.aborted) return;
+                        if (dlResp.ok) {
+                            const { base64, contentType } = await dlResp.json();
+                            if (controller.signal.aborted) return;
+                            if (base64) {
+                                video.src = `data:${contentType};base64,${base64}`;
+                            }
+                        } else {
+                            log(`Video download error (${dlResp.status})`, 'warn');
+                        }
+                    } catch (dlErr) {
+                        if (dlErr.name === 'AbortError') return;
+                        log(`Video download failed: ${dlErr.message}`, 'warn');
+                    }
                 }
-            } catch (err) {
-                log(`Preview proxy failed: ${err.message}`, 'warn');
-                // Fallback: try direct URL (may work on some networks)
-                img.src = fullUrl;
             }
+
+            video.addEventListener('canplay', () => loader.style.display = 'none', { once: true });
+            imgWrap.insertBefore(video, loader);
+
+            saveBtn.disabled = false;
+            saveBtn.title = 'Save to character gallery';
+        } else {
+            // Image post: show thumbnail immediately, upgrade to full-res
+            img.style.display = '';
+
+            // Show thumbnail at full opacity, stretched to fill frame
+            img.src = post.preview_url || '';
+            img.style.opacity = '1';
+            img.classList.add('loading-preview');
+            loader.style.display = 'flex';
+
+            // Load full-res image via server proxy (Gelbooru CDN blocks direct browser access)
+            const fullUrl = post.file_url || post.sample_url || '';
+            if (fullUrl) {
+                try {
+                    const dlResp = await fetchWithCsrf(`${PLUGIN_BASE}/gelbooru/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: fullUrl }),
+                        signal: controller.signal,
+                    });
+                    // Check if we were aborted (user navigated away)
+                    if (controller.signal.aborted) return;
+                    if (dlResp.ok) {
+                        const { base64, contentType } = await dlResp.json();
+                        if (controller.signal.aborted) return;
+                        if (base64) {
+                            img.src = `data:${contentType};base64,${base64}`;
+                        }
+                    } else {
+                        const errBody = await dlResp.text().catch(() => '');
+                        log(`Preview proxy error (${dlResp.status}): ${errBody}`, 'warn');
+                    }
+                } catch (err) {
+                    if (err.name === 'AbortError') return;
+                    log(`Preview proxy failed: ${err.message}`, 'warn');
+                    // Fallback: try direct URL (may work on some networks)
+                    if (!controller.signal.aborted) img.src = fullUrl;
+                }
+            }
+            if (!controller.signal.aborted) {
+                img.classList.remove('loading-preview');
+                loader.style.display = 'none';
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.title = 'Save to character gallery';
         }
-        img.style.opacity = '1';
-        loader.style.display = 'none';
 
         // Metadata
         dims.textContent = `${post.width}×${post.height}`;
@@ -516,10 +673,23 @@ export class GelbooruSearch {
     }
 
     closePreview() {
+        if (this._previewController) this._previewController.abort();
         this.previewPost = null;
         this._resetPreviewZoom();
         const overlay = this.container.querySelector('.uishortcuts-gelbooru-preview-overlay');
         overlay.classList.remove('active');
+
+        // Clean up video element if present
+        const imgWrap = this.container.querySelector('.uishortcuts-gelbooru-preview-image-wrap');
+        const video = imgWrap?.querySelector('.uishortcuts-gelbooru-preview-video');
+        if (video) {
+            video.pause();
+            video.src = '';
+            video.remove();
+        }
+        // Restore img visibility
+        const img = this.container.querySelector('.uishortcuts-gelbooru-preview-image');
+        if (img) img.style.display = '';
     }
 
     navigatePreview(direction) {
@@ -582,6 +752,8 @@ export class GelbooruSearch {
                 'image/png': 'png',
                 'image/webp': 'webp',
                 'image/gif': 'gif',
+                'video/mp4': 'mp4',
+                'video/webm': 'webm',
             };
             const format = formatMap[contentType] || 'png';
             const filename = `gelbooru_${post.id}`;
@@ -767,6 +939,21 @@ export class GelbooruSearch {
             this.navigatePreview(1);
             return true;
         }
+        // Keyboard zoom
+        if (e.key === '+' || e.key === '=') {
+            this._previewZoom = Math.min(this._previewZoomMax, this._previewZoom + 0.25);
+            this._applyPreviewTransform();
+            return true;
+        }
+        if (e.key === '-' || e.key === '_') {
+            this._previewZoom = Math.max(this._previewZoomMin, this._previewZoom - 0.25);
+            this._applyPreviewTransform();
+            return true;
+        }
+        if (e.key === '0') {
+            this._resetPreviewZoom();
+            return true;
+        }
         return false;
     }
 
@@ -778,17 +965,91 @@ export class GelbooruSearch {
         this._previewZoom = 1;
         this._previewPan = { x: 0, y: 0 };
         const img = this.container?.querySelector('.uishortcuts-gelbooru-preview-image');
-        if (img) img.style.transform = '';
+        if (img) {
+            img.style.transform = '';
+            img.classList.remove('zoomed');
+        }
     }
 
     _applyPreviewTransform() {
         const img = this.container?.querySelector('.uishortcuts-gelbooru-preview-image');
         if (!img) return;
-        const { x, y } = this._previewPan;
-        img.style.transform = `translate(${x}px, ${y}px) scale(${this._previewZoom})`;
+        img.classList.toggle('zoomed', this._previewZoom > 1);
+        if (this._previewZoom <= 1) {
+            this._previewPan = { x: 0, y: 0 };
+            img.style.transform = `scale(${this._previewZoom})`;
+        } else {
+            const { x, y } = this._previewPan;
+            img.style.transform = `translate(${x}px, ${y}px) scale(${this._previewZoom})`;
+        }
+    }
+
+    // ---- Desktop wheel zoom ----
+
+    _handlePreviewWheel(e) {
+        if (!this.previewPost || this._isVideoPost(this.previewPost)) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.15 : 0.15;
+        const newZoom = Math.max(this._previewZoomMin, Math.min(this._previewZoomMax, this._previewZoom + delta));
+        if (newZoom !== this._previewZoom) {
+            this._previewZoom = newZoom;
+            this._applyPreviewTransform();
+        }
+    }
+
+    // ---- Desktop mouse pan ----
+
+    _startPreviewMousePan(e) {
+        if (!this.previewPost || this._isVideoPost(this.previewPost)) return;
+        if (this._previewZoom <= 1) return;
+        e.preventDefault();
+        this._previewMousePanning = true;
+        this._previewWasPanning = false;
+        this._previewPanStart.x = e.clientX - this._previewPan.x;
+        this._previewPanStart.y = e.clientY - this._previewPan.y;
+    }
+
+    _onPreviewMousePan(e) {
+        if (!this._previewMousePanning) return;
+        e.preventDefault();
+        this._previewWasPanning = true;
+        this._previewPan.x = e.clientX - this._previewPanStart.x;
+        this._previewPan.y = e.clientY - this._previewPanStart.y;
+        const img = this.container?.querySelector('.uishortcuts-gelbooru-preview-image');
+        if (img) {
+            img.style.transform = `translate(${this._previewPan.x}px, ${this._previewPan.y}px) scale(${this._previewZoom})`;
+        }
+    }
+
+    _stopPreviewMousePan() {
+        this._previewMousePanning = false;
+    }
+
+    _handlePreviewImageClick(e) {
+        if (this._previewWasPanning) {
+            this._previewWasPanning = false;
+            return;
+        }
+        if (this._previewZoom !== 1) {
+            this._resetPreviewZoom();
+        }
     }
 
     _onPreviewTouchStart(e) {
+        const isVideo = this.previewPost && this._isVideoPost(this.previewPost);
+
+        // Pinch-to-zoom: two fingers on images
+        if (e.touches.length === 2 && !isVideo) {
+            e.preventDefault();
+            const [a, b] = e.touches;
+            this._pinch.active = true;
+            this._pinch.startDist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+            this._pinch.startZoom = this._previewZoom;
+            this._touch.isTracking = false;
+            this._touch.isPanning = false;
+            return;
+        }
+
         if (e.touches.length !== 1) return;
         const t = e.touches[0];
         const s = this._touch;
@@ -796,15 +1057,30 @@ export class GelbooruSearch {
         s.startY = s.lastY = t.clientY;
         s.tapMoved = false;
         s.isTracking = true;
-        s.isPanning = this._previewZoom > 1;
+        // Only allow panning for images when zoomed
+        s.isPanning = !isVideo && this._previewZoom > 1;
         s.panMoved = false;
         if (s.isPanning) {
+            e.preventDefault();
             this._previewPanStart.x = t.clientX - this._previewPan.x;
             this._previewPanStart.y = t.clientY - this._previewPan.y;
         }
     }
 
     _onPreviewTouchMove(e) {
+        // Pinch zoom
+        if (this._pinch.active && e.touches.length === 2) {
+            e.preventDefault();
+            const [a, b] = e.touches;
+            const dist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+            if (this._pinch.startDist > 0) {
+                const zoom = this._pinch.startZoom * (dist / this._pinch.startDist);
+                this._previewZoom = Math.max(this._previewZoomMin, Math.min(this._previewZoomMax, zoom));
+                this._applyPreviewTransform();
+            }
+            return;
+        }
+
         const s = this._touch;
         if (!s.isTracking || e.touches.length !== 1) return;
         const t = e.touches[0];
@@ -831,6 +1107,12 @@ export class GelbooruSearch {
     }
 
     _onPreviewTouchEnd(e) {
+        // End pinch
+        if (this._pinch.active) {
+            if (e.touches.length < 2) this._pinch.active = false;
+            return;
+        }
+
         const s = this._touch;
         if (!s.isTracking) return;
         s.isTracking = false;
@@ -840,8 +1122,8 @@ export class GelbooruSearch {
         const dx = s.lastX - s.startX;
         const dy = s.lastY - s.startY;
 
-        // Swipe navigation
-        if (s.tapMoved && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        // Swipe navigation (only when not zoomed, to avoid interfering with pan)
+        if (this._previewZoom <= 1 && s.tapMoved && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
             this.navigatePreview(dx < 0 ? 1 : -1);
             return;
         }
@@ -877,12 +1159,27 @@ export class GelbooruSearch {
     destroy() {
         clearTimeout(this._acTimer);
         if (this._acController) this._acController.abort();
+        if (this._previewController) this._previewController.abort();
         const imgWrap = this.container?.querySelector('.uishortcuts-gelbooru-preview-image-wrap');
         if (imgWrap) {
+            imgWrap.removeEventListener('click', this.boundHandlers.onImgWrapClick);
             imgWrap.removeEventListener('touchstart', this.boundHandlers.onPreviewTouchStart);
             imgWrap.removeEventListener('touchmove', this.boundHandlers.onPreviewTouchMove);
             imgWrap.removeEventListener('touchend', this.boundHandlers.onPreviewTouchEnd);
             imgWrap.removeEventListener('touchcancel', this.boundHandlers.onPreviewTouchEnd);
+            imgWrap.removeEventListener('wheel', this.boundHandlers.onPreviewWheel);
+        }
+        const previewImg = this.container?.querySelector('.uishortcuts-gelbooru-preview-image');
+        if (previewImg) {
+            previewImg.removeEventListener('mousedown', this.boundHandlers.onPreviewMouseDown);
+            previewImg.removeEventListener('click', this.boundHandlers.onPreviewImageClick);
+        }
+        document.removeEventListener('mousemove', this.boundHandlers.onPreviewMouseMove);
+        document.removeEventListener('mouseup', this.boundHandlers.onPreviewMouseUp);
+        const grid = this.container?.querySelector('.uishortcuts-gelbooru-grid');
+        if (grid) {
+            grid.removeEventListener('touchstart', this.boundHandlers.onGridTouchStart);
+            grid.removeEventListener('touchend', this.boundHandlers.onGridTouchEnd);
         }
     }
 }
