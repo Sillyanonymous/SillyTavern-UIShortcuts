@@ -152,7 +152,9 @@ ${SEL.container} {
 /* ── Group header (green) ─────────────────────── */
 
 .${C.hdr} {
-    display: flex;
+    /* Grid (not flex) so the name column inherits the overflow:hidden -> min-width:0 spec rule */
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 8px;
     padding: 7px 12px;
@@ -169,6 +171,7 @@ ${SEL.container} {
     transition: background 0.15s;
     box-sizing: border-box;
     max-width: 100%;
+    min-width: 0;
 }
 .${C.hdr}:hover {
     background: rgba(76, 175, 80, 0.26) !important;
@@ -182,7 +185,8 @@ ${SEL.container} {
 /* ── Sub-group header (orange) ────────────────── */
 
 .${C.subHdr} {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 7px;
     padding: 5px 10px 5px 24px;
@@ -197,6 +201,7 @@ ${SEL.container} {
     transition: background 0.15s;
     box-sizing: border-box;
     max-width: 100%;
+    min-width: 0;
 }
 .${C.subHdr}:hover {
     background: rgba(255, 152, 0, 0.22) !important;
@@ -218,6 +223,7 @@ ${SEL.container} {
 
 .${C.name} {
     flex: 1;
+    min-width: 0;
     font-weight: 600;
     color: var(--SmartThemeBodyColor, #e0e0e0);
     white-space: nowrap;
@@ -279,6 +285,34 @@ ${LI_FULL}.${C.subMem}.${C.last} {
     border-bottom: 1px solid rgba(76, 175, 80, 0.3) !important;
     border-radius: 0 0 6px 4px !important;
     margin-bottom: 4px !important;
+}
+
+/* Mobile: reclaim horizontal space and restore clipping so ST's row ellipsis works
+   and action buttons stay in viewport. */
+@media (pointer: coarse), (max-width: 900px) {
+    ${SEL.container} {
+        overflow-x: hidden !important;
+    }
+    ${LI_FULL}.${C.member},
+    ${LI_FULL}.${C.subMem} {
+        overflow: hidden !important;
+        border-left-width: 2px !important;
+        border-right-width: 0 !important;
+    }
+    ${LI_FULL}.${C.subMem} {
+        padding-left: 8px !important;
+    }
+    .${C.hdr},
+    .${C.subHdr} {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    .${C.subHdr} {
+        padding-left: 16px !important;
+    }
+    .${C.name} {
+        min-width: 0 !important;
+    }
 }
 `;
 

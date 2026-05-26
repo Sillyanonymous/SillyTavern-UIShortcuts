@@ -64,6 +64,91 @@ function captureVideoThumbnail(src) {
     });
 }
 
+/**
+ * Concurrency-limited IntersectionObserver-based lazy loader for gallery tiles.
+ * Each tile is a `.uishortcuts-gallery-tile[data-src][data-kind]` element; when
+ * it enters the viewport (+ rootMargin), a loader assigns its <img> src or
+ * captures a video thumbnail — up to MAX_ACTIVE at once.
+ */
+class LazyMediaLoader {
+    constructor({ root, rootMargin = '200px', maxActive = 6 } = {}) {
+        this.maxActive = maxActive;
+        this.active = 0;
+        this.queue = [];
+        this.observer = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+                if (!e.isIntersecting) continue;
+                this.observer.unobserve(e.target);
+                this._enqueue(e.target);
+            }
+        }, { root: root || null, rootMargin });
+    }
+
+    observe(tile) { this.observer.observe(tile); }
+
+    _enqueue(tile) {
+        if (this.active < this.maxActive) {
+            this.active++;
+            this._load(tile);
+        } else {
+            this.queue.push(tile);
+        }
+    }
+
+    _drain() {
+        this.active--;
+        if (this.queue.length && this.active < this.maxActive) {
+            this.active++;
+            this._load(this.queue.shift());
+        }
+    }
+
+    _load(tile) {
+        if (!tile.isConnected) { this._drain(); return; }
+        const kind = tile.dataset.kind;
+        const src = tile.dataset.src;
+        const img = tile.querySelector('img');
+        if (!img) { this._drain(); return; }
+
+        const done = () => {
+            tile.classList.remove('uishortcuts-gallery-tile-loading');
+            this._drain();
+        };
+
+        if (kind === 'video') {
+            captureVideoThumbnail(src).then(dataUrl => {
+                if (!tile.isConnected) return this._drain();
+                if (dataUrl) {
+                    img.src = dataUrl;
+                    done();
+                } else {
+                    // Fall back to film-icon overlay
+                    img.remove();
+                    const icon = tile.querySelector('.uishortcuts-gallery-tile-badge');
+                    if (icon) {
+                        icon.classList.add('uishortcuts-gallery-tile-badge-fallback');
+                        icon.innerHTML = '<i class="fa-solid fa-film"></i>';
+                    }
+                    done();
+                }
+            });
+        } else {
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', () => {
+                tile.classList.add('uishortcuts-gallery-tile-error');
+                done();
+            }, { once: true });
+            img.src = src;
+        }
+    }
+
+    destroy() {
+        this.observer.disconnect();
+        this.queue.length = 0;
+        this.active = 0;
+    }
+}
+
 export class AvatarGallerySelector {
     constructor() {
         this.panel = null;
@@ -99,7 +184,13 @@ export class AvatarGallerySelector {
         // Video playback state
         this._videoEl = null;
         this._mainImgEl = null; // Stable reference to the persistent <img> element
-        
+
+        // Lazy-loading state
+        this._thumbLoader = null;   // Horizontal thumbnail strip loader
+        this._gridLoader = null;    // Grid view loader
+        this._preloaded = new Map(); // index → HTMLImageElement (prev/next preloads)
+        this._mainAbort = null;      // AbortController for current main-image load
+
         // Resize observer
         this.resizeObserver = null;
         
@@ -692,6 +783,7 @@ export class AvatarGallerySelector {
     close() {
         this.saveState();
         this._cleanupVideo();
+        this._cleanupLoaders();
         this.resetZoom();
         this.hideCreatorNotes();
         this.panel.classList.remove('active');
@@ -701,6 +793,13 @@ export class AvatarGallerySelector {
         // Reset Gelbooru state and switch back to local tab
         if (this.gelbooru) this.gelbooru.reset();
         if (this.activeTab !== 'local') this.switchTab('local', true);
+    }
+
+    _cleanupLoaders() {
+        if (this._mainAbort) { this._mainAbort.abort(); this._mainAbort = null; }
+        if (this._thumbLoader) { this._thumbLoader.destroy(); this._thumbLoader = null; }
+        if (this._gridLoader) { this._gridLoader.destroy(); this._gridLoader = null; }
+        this._preloaded.clear();
     }
 
     // ========================================
@@ -761,6 +860,11 @@ export class AvatarGallerySelector {
         const counter = this.panel.querySelector('.uishortcuts-gallery-counter');
         const src = this.currentImages[index];
 
+        // Abort any in-flight main-image load from a prior navigation
+        if (this._mainAbort) this._mainAbort.abort();
+        const controller = new AbortController();
+        this._mainAbort = controller;
+
         // Clean up any existing video before switching media
         this._cleanupVideo();
 
@@ -790,23 +894,32 @@ export class AvatarGallerySelector {
             // --- IMAGE ---
             const mainImg = this._mainImgEl;
 
-            // Preload the new image — keep the current one visible while loading
-            const img = new Image();
-            img.onload = () => {
+            // If we preloaded this one, use the decoded Image directly — instant swap
+            const preloaded = this._preloaded.get(index);
+            if (preloaded && preloaded.src === src && preloaded.complete && preloaded.naturalWidth > 0) {
                 mainImg.src = src;
                 mainImg.style.opacity = '1';
                 loader.classList.remove('active');
-            };
-            img.onerror = () => {
-                mainImg.src = src;
-                mainImg.style.opacity = '0.5';
-                loader.classList.remove('active');
-            };
-            img.src = src;
-
-            // If already cached, swap instantly. Otherwise show spinner over current image.
-            if (!img.complete) {
+            } else {
+                // Show spinner over the currently displayed image while loading
                 loader.classList.add('active');
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = src;
+
+                // Use decode() for smooth transition — swap only once decoded
+                img.decode().then(() => {
+                    if (controller.signal.aborted) return;
+                    mainImg.src = src;
+                    mainImg.style.opacity = '1';
+                    loader.classList.remove('active');
+                }).catch(() => {
+                    if (controller.signal.aborted) return;
+                    // decode() failed — swap anyway so the browser can try rendering
+                    mainImg.src = src;
+                    mainImg.style.opacity = '0.5';
+                    loader.classList.remove('active');
+                });
             }
         }
 
@@ -815,13 +928,44 @@ export class AvatarGallerySelector {
         if (characterKey) {
             this.lastSelectedByCharacter.set(characterKey, this.currentImages[index]);
         }
-        
+
         counter.textContent = `${index + 1} / ${this.currentImages.length}`;
 
         const prevBtn = this.panel.querySelector('.uishortcuts-gallery-prev');
         const nextBtn = this.panel.querySelector('.uishortcuts-gallery-next');
         prevBtn.disabled = false;
         nextBtn.disabled = false;
+
+        // Preload neighbours for smooth prev/next navigation
+        this._preloadAdjacent(index);
+    }
+
+    /**
+     * Preload the images immediately before and after `index`, and evict
+     * any cached preloads that are no longer neighbours. Only images are
+     * preloaded (video is skipped — they're too heavy to preload blindly).
+     */
+    _preloadAdjacent(index) {
+        const total = this.currentImages.length;
+        if (total <= 1) return;
+
+        const keep = new Set([index, (index + 1) % total, (index - 1 + total) % total]);
+        // Evict old entries
+        for (const k of this._preloaded.keys()) {
+            if (!keep.has(k)) this._preloaded.delete(k);
+        }
+
+        const warm = (i) => {
+            if (this._preloaded.has(i)) return;
+            const src = this.currentImages[i];
+            if (!src || isVideoFile(src)) return;
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = src;
+            this._preloaded.set(i, img);
+        };
+        warm((index + 1) % total);
+        warm((index - 1 + total) % total);
     }
 
     _cleanupVideo() {
@@ -844,62 +988,74 @@ export class AvatarGallerySelector {
     // THUMBNAILS
     // ========================================
 
+    /**
+     * Build a tile DOM element for both strip thumbnails and grid items.
+     * Returns the tile element; lazy-loading happens when the tile enters
+     * the viewport (attached to a LazyMediaLoader observer).
+     */
+    _buildTile(src, index, variant) {
+        const tile = document.createElement('div');
+        tile.className = `uishortcuts-gallery-tile uishortcuts-gallery-tile-${variant} uishortcuts-gallery-tile-loading`;
+        tile.dataset.src = src;
+        tile.dataset.kind = isVideoFile(src) ? 'video' : 'image';
+        tile.dataset.index = String(index);
+        if (index === this.selectedIndex) tile.classList.add('active');
+
+        // Transparent placeholder to reserve space + hold future src
+        const img = document.createElement('img');
+        img.alt = `${variant === 'strip' ? 'Thumbnail' : 'Image'} ${index + 1}`;
+        img.decoding = 'async';
+        img.draggable = false;
+        // 1×1 transparent SVG placeholder (no network request)
+        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>';
+        tile.appendChild(img);
+
+        if (isVideoFile(src)) {
+            const badge = document.createElement('div');
+            badge.className = 'uishortcuts-gallery-tile-badge';
+            badge.innerHTML = '<i class="fa-solid fa-play"></i>';
+            tile.appendChild(badge);
+        }
+
+        return tile;
+    }
+
     renderThumbnails() {
         const container = this.panel.querySelector('.uishortcuts-gallery-thumbnails-scroll');
-        container.innerHTML = '';
-        
         const thumbnailsSection = this.panel.querySelector('.uishortcuts-gallery-thumbnails');
+
+        // Tear down previous loader
+        if (this._thumbLoader) this._thumbLoader.destroy();
+        container.innerHTML = '';
+
         if (this.currentImages.length <= 1) {
             thumbnailsSection.style.display = 'none';
             return;
         }
-        thumbnailsSection.style.display = 'block';
-        
+        thumbnailsSection.style.display = '';
+
+        this._thumbLoader = new LazyMediaLoader({ root: container, rootMargin: '300px', maxActive: 6 });
+
         this.currentImages.forEach((src, index) => {
-            const thumb = document.createElement('div');
-            thumb.className = 'uishortcuts-gallery-thumb';
-            if (index === this.selectedIndex) {
-                thumb.classList.add('active');
-            }
-            
-            if (isVideoFile(src)) {
-                const img = document.createElement('img');
-                img.alt = `Thumbnail ${index + 1}`;
-                img.className = 'uishortcuts-gallery-video-thumb-img';
-                const badge = document.createElement('div');
-                badge.className = 'uishortcuts-gallery-video-thumb-badge';
-                badge.innerHTML = '<i class="fa-solid fa-play"></i>';
-                thumb.appendChild(img);
-                thumb.appendChild(badge);
-                captureVideoThumbnail(src).then(dataUrl => {
-                    if (dataUrl) img.src = dataUrl;
-                    else { img.remove(); badge.className = 'uishortcuts-gallery-video-thumb-icon'; badge.innerHTML = '<i class="fa-solid fa-film"></i>'; }
-                });
-            } else {
-                const img = document.createElement('img');
-                img.src = src;
-                img.alt = `Thumbnail ${index + 1}`;
-                img.loading = 'lazy';
-                thumb.appendChild(img);
-            }
-            thumb.addEventListener('click', () => {
+            const tile = this._buildTile(src, index, 'strip');
+            tile.addEventListener('click', () => {
                 this.selectedIndex = index;
                 this.resetZoom();
                 this.showImage(index);
                 this.updateThumbnailSelection();
             });
-            
-            container.appendChild(thumb);
+            container.appendChild(tile);
+            this._thumbLoader.observe(tile);
         });
     }
 
     updateThumbnailSelection() {
-        const thumbs = this.panel.querySelectorAll('.uishortcuts-gallery-thumb');
-        thumbs.forEach((thumb, index) => {
-            thumb.classList.toggle('active', index === this.selectedIndex);
+        const tiles = this.panel.querySelectorAll('.uishortcuts-gallery-tile-strip');
+        tiles.forEach((tile, index) => {
+            tile.classList.toggle('active', index === this.selectedIndex);
         });
-        
-        const activeThumb = this.panel.querySelector('.uishortcuts-gallery-thumb.active');
+
+        const activeThumb = this.panel.querySelector('.uishortcuts-gallery-tile-strip.active');
         if (activeThumb) {
             activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
@@ -912,60 +1068,38 @@ export class AvatarGallerySelector {
     toggleGridView() {
         this.isGridView = !this.isGridView;
         this.panel.classList.toggle('grid-mode', this.isGridView);
-        
+
         const gridBtn = this.panel.querySelector('.uishortcuts-gallery-grid i');
         gridBtn.className = this.isGridView ? 'fa-solid fa-image' : 'fa-solid fa-grip';
     }
 
     renderGridView() {
         const container = this.panel.querySelector('.uishortcuts-gallery-grid-scroll');
+
+        // Tear down previous loader
+        if (this._gridLoader) this._gridLoader.destroy();
         container.innerHTML = '';
-        
+
+        this._gridLoader = new LazyMediaLoader({ root: container, rootMargin: '400px', maxActive: 6 });
+
         this.currentImages.forEach((src, index) => {
-            const item = document.createElement('div');
-            item.className = 'uishortcuts-gallery-grid-item';
-            if (index === this.selectedIndex) {
-                item.classList.add('active');
-            }
-            
-            if (isVideoFile(src)) {
-                const img = document.createElement('img');
-                img.alt = `Image ${index + 1}`;
-                img.className = 'uishortcuts-gallery-video-thumb-img';
-                const badge = document.createElement('div');
-                badge.className = 'uishortcuts-gallery-video-thumb-badge';
-                badge.innerHTML = '<i class="fa-solid fa-play"></i>';
-                item.appendChild(img);
-                item.appendChild(badge);
-                captureVideoThumbnail(src).then(dataUrl => {
-                    if (dataUrl) img.src = dataUrl;
-                    else { img.remove(); badge.className = 'uishortcuts-gallery-video-thumb-icon'; badge.innerHTML = '<i class="fa-solid fa-film"></i>'; }
-                });
-            } else {
-                const img = document.createElement('img');
-                img.src = src;
-                img.alt = `Image ${index + 1}`;
-                img.loading = 'lazy';
-                item.appendChild(img);
-            }
-            item.addEventListener('click', () => {
+            const tile = this._buildTile(src, index, 'grid');
+            tile.addEventListener('click', () => {
                 this.selectedIndex = index;
                 this.showImage(index);
                 this.updateThumbnailSelection();
                 this.updateGridSelection();
-                if (this.isGridView) {
-                    this.toggleGridView();
-                }
+                if (this.isGridView) this.toggleGridView();
             });
-            
-            container.appendChild(item);
+            container.appendChild(tile);
+            this._gridLoader.observe(tile);
         });
     }
 
     updateGridSelection() {
-        const items = this.panel.querySelectorAll('.uishortcuts-gallery-grid-item');
-        items.forEach((item, index) => {
-            item.classList.toggle('active', index === this.selectedIndex);
+        const tiles = this.panel.querySelectorAll('.uishortcuts-gallery-tile-grid');
+        tiles.forEach((tile, index) => {
+            tile.classList.toggle('active', index === this.selectedIndex);
         });
     }
 
@@ -1261,6 +1395,7 @@ export class AvatarGallerySelector {
 
     destroy() {
         this._cleanupVideo();
+        this._cleanupLoaders();
         if (this.mobileCleanup) {
             this.mobileCleanup();
         }

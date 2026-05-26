@@ -81,6 +81,10 @@ SillyTavern-UIShortcuts/
     └── package.json                      # Plugin metadata
 ```
 
+`src/modules/registry.js` may list module names whose folders aren't present in this release. Missing folders are skipped at startup and log a warning to the browser console. This is expected.
+
+Omitted modules are either in active development, experimental, or personal workflow tools too narrow to publish. The public release is a curated subset of the dev tree.
+
 ## License
 
 AGPL-3.0

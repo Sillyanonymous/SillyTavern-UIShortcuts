@@ -53,21 +53,22 @@
     }
 
     .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumbnails {
-        height: 84px;
         padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
     }
 
     .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumbnails-scroll {
+        height: 72px;
         scroll-snap-type: x mandatory;
     }
 
-    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumb {
-        width: 64px;
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-tile-strip {
+        width: 72px;
+        height: 72px;
         scroll-snap-align: center;
         opacity: 0.8;
     }
 
-    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-thumb.active {
+    .uishortcuts-gallery-panel.uishortcuts-gallery-mobile .uishortcuts-gallery-tile-strip.active {
         opacity: 1;
         border-width: 3px;
     }

@@ -172,7 +172,7 @@
 
 .uishortcuts-gallery-grid-scroll {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
     gap: 8px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -195,32 +195,115 @@
     border-radius: 2px;
 }
 
-.uishortcuts-gallery-grid-item {
-    aspect-ratio: 1;
+/* ========================================
+   TILE — unified thumb/grid item
+   ======================================== */
+.uishortcuts-gallery-tile {
+    box-sizing: border-box;
+    position: relative;
     border-radius: 6px;
     overflow: hidden;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: var(--uishortcuts-transition);
-    opacity: 0.8;
-    position: relative;
+    transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #000) 15%, transparent);
+    opacity: 0.85;
 }
 
-.uishortcuts-gallery-grid-item:hover {
+.uishortcuts-gallery-tile:hover {
     opacity: 1;
-    transform: scale(1.05);
 }
 
-.uishortcuts-gallery-grid-item.active {
+.uishortcuts-gallery-tile.active {
     border-color: var(--SmartThemeQuoteColor, #4a9eff);
     opacity: 1;
     box-shadow: 0 0 8px color-mix(in srgb, var(--SmartThemeQuoteColor, #4a9eff) 40%, transparent);
 }
 
-.uishortcuts-gallery-grid-item img {
+.uishortcuts-gallery-tile img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* Subtle shimmer while the image is loading (before the real src arrives) */
+.uishortcuts-gallery-tile-loading {
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--SmartThemeBodyColor, #000) 12%, transparent) 25%,
+        color-mix(in srgb, var(--SmartThemeBodyColor, #000) 20%, transparent) 50%,
+        color-mix(in srgb, var(--SmartThemeBodyColor, #000) 12%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: uishortcuts-gallery-tile-shimmer 1.2s linear infinite;
+}
+
+@keyframes uishortcuts-gallery-tile-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.uishortcuts-gallery-tile-error::after {
+    content: '\f127'; /* fa-unlink */
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+    font-size: 1rem;
+    opacity: 0.5;
+}
+
+/* Tile variants */
+.uishortcuts-gallery-tile-strip {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 1;
+    opacity: 0.6;
+}
+.uishortcuts-gallery-tile-strip:hover { opacity: 0.95; }
+.uishortcuts-gallery-tile-strip.active { opacity: 1; }
+
+.uishortcuts-gallery-tile-grid {
+    aspect-ratio: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* Video play badge (bottom-right) */
+.uishortcuts-gallery-tile-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+}
+
+/* Fallback state: video frame capture failed — fill the whole tile */
+.uishortcuts-gallery-tile-badge-fallback {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    bottom: auto;
+    right: auto;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+    font-size: 1.1rem;
 }
 
 /* Main image view */
@@ -283,44 +366,6 @@ video.uishortcuts-gallery-main-image.zoomed {
 
 video.uishortcuts-gallery-main-image.zoomed:active {
     cursor: grabbing;
-}
-
-/* Video placeholder icon for thumbnails and grid items (fallback when capture fails) */
-.uishortcuts-gallery-video-thumb-icon {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    color: var(--SmartThemeQuoteColor, #4a9eff);
-    font-size: 1.1rem;
-}
-
-/* Captured video frame thumbnail */
-.uishortcuts-gallery-video-thumb-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-/* Play button badge overlaid on video thumbnails */
-.uishortcuts-gallery-video-thumb-badge {
-    position: absolute;
-    bottom: 3px;
-    right: 3px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.55rem;
-    pointer-events: none;
-    backdrop-filter: blur(2px);
 }
 
 .uishortcuts-gallery-image-loader {
@@ -389,12 +434,11 @@ video.uishortcuts-gallery-main-image.zoomed:active {
 }
 
 /* ========================================
-   THUMBNAILS
+   THUMBNAIL STRIP
    ======================================== */
 .uishortcuts-gallery-thumbnails {
-    height: 60px;
     border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
-    padding: 8px 4px;
+    padding: 8px 6px;
     flex-shrink: 0;
     margin-top: auto;
 }
@@ -402,11 +446,12 @@ video.uishortcuts-gallery-main-image.zoomed:active {
 .uishortcuts-gallery-thumbnails-scroll {
     display: flex;
     gap: 8px;
-    height: 100%;
+    height: 72px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--SmartThemeQuoteColor, #4a9eff) transparent;
+    scroll-behavior: smooth;
 }
 
 .uishortcuts-gallery-thumbnails-scroll::-webkit-scrollbar {
@@ -420,35 +465,6 @@ video.uishortcuts-gallery-main-image.zoomed:active {
 .uishortcuts-gallery-thumbnails-scroll::-webkit-scrollbar-thumb {
     background: var(--SmartThemeQuoteColor, #4a9eff);
     border-radius: 2px;
-}
-
-.uishortcuts-gallery-thumb {
-    flex-shrink: 0;
-    width: 44px;
-    height: 100%;
-    border-radius: 4px;
-    overflow: hidden;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.15s ease;
-    position: relative;
-    opacity: 0.5;
-}
-
-.uishortcuts-gallery-thumb:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
-}
-
-.uishortcuts-gallery-thumb.active {
-    border-color: var(--SmartThemeQuoteColor, #4a9eff);
-    opacity: 1;
-}
-
-.uishortcuts-gallery-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
 }
 
 /* ========================================

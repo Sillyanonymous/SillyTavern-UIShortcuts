@@ -14,4 +14,8 @@ export default [
     'external-media-always-on',
     'prompt-groups',
     'char-tagline',
+    'chat-cleaner',
+    'background-keepalive',
+    'stream-pulse',
+    'stream-diagnostics',
 ];
