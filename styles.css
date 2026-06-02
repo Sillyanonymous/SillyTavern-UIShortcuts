@@ -4,6 +4,7 @@
 @import url('src/modules/avatar-gallery/styles.css');
 @import url('src/modules/avatar-gallery/mobile/styles.css');
 @import url('src/modules/avatar-gallery/gelbooru/styles.css');
+@import url('src/modules/avatar-gallery/set-as-background/styles.css');
 @import url('src/modules/css-snippets/styles.css');
 /* prompt-groups styles are injected from JS — no @import needed */
 

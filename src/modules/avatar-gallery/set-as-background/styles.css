@@ -1,0 +1,211 @@
+/* ========================================
+   SET-AS-BACKGROUND SUB-MODULE
+   ======================================== */
+
+/* Toolbar button state */
+.uishortcuts-gallery-set-as-bg.disabled,
+.uishortcuts-gallery-set-as-bg:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.uishortcuts-gallery-set-as-bg.disabled:hover,
+.uishortcuts-gallery-set-as-bg:disabled:hover {
+    background: var(--black30a, rgba(0, 0, 0, 0.3));
+    color: var(--SmartThemeEmColor, var(--SmartThemeBodyColor, #a0a0a0));
+}
+
+/* ========================================
+   POPOVER
+   ======================================== */
+.uishortcuts-bg-popover {
+    position: fixed;
+    width: 280px;
+    z-index: 10001;
+    background: var(--SmartThemeBlurTintColor, #1a1a1a);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    border-radius: 8px;
+    box-shadow:
+        0 6px 24px var(--SmartThemeShadowColor, rgba(0, 0, 0, 0.55)),
+        0 0 1px rgba(255, 255, 255, 0.08) inset;
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10) * 1px));
+    -webkit-backdrop-filter: blur(calc(var(--SmartThemeBlurStrength, 10) * 1px));
+
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+    pointer-events: none;
+}
+
+.uishortcuts-bg-popover.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.uishortcuts-bg-popover-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--SmartThemeChatTintColor, rgba(0, 0, 0, 0.18));
+    border-radius: 8px 8px 0 0;
+}
+
+.uishortcuts-bg-popover-header i {
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+    font-size: 0.75rem;
+}
+
+.uishortcuts-bg-popover-body {
+    padding: 8px 10px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.uishortcuts-bg-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--SmartThemeBodyColor, #ddd);
+}
+
+.uishortcuts-bg-row > span:first-child {
+    color: var(--SmartThemeEmColor, #aaa);
+}
+
+.uishortcuts-bg-targets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.uishortcuts-bg-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+}
+
+.uishortcuts-bg-checkbox input {
+    margin: 0;
+    accent-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-bg-row select {
+    width: 100%;
+    background: var(--black30a, rgba(0, 0, 0, 0.3));
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 0.75rem;
+}
+
+.uishortcuts-bg-slider-wrap {
+    display: grid;
+    grid-template-columns: 1fr 44px;
+    align-items: center;
+    gap: 6px;
+}
+
+.uishortcuts-bg-slider-wrap input[type="range"] {
+    width: 100%;
+    accent-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-bg-readout {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.7rem;
+    color: var(--SmartThemeEmColor, #999);
+    text-align: right;
+}
+
+/* ========================================
+   POPOVER FOOTER
+   ======================================== */
+.uishortcuts-bg-popover-footer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-wrap: wrap;
+}
+
+.uishortcuts-bg-btn {
+    background: var(--black30a, rgba(0, 0, 0, 0.3));
+    color: var(--SmartThemeBodyColor, #e0e0e0);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: var(--uishortcuts-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.uishortcuts-bg-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-bg-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.uishortcuts-bg-btn-apply {
+    margin-left: auto;
+    background: var(--SmartThemeQuoteColor, #4a9eff);
+    color: white;
+    border-color: transparent;
+}
+
+.uishortcuts-bg-btn-apply:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--SmartThemeQuoteColor, #4a9eff) 80%, white);
+}
+
+.uishortcuts-bg-btn-clear:hover:not(:disabled) {
+    border-color: rgba(231, 76, 60, 0.6);
+    color: #e74c3c;
+}
+
+/* ========================================
+   STATUS
+   ======================================== */
+.uishortcuts-bg-popover-status {
+    padding: 0 10px 6px;
+    font-size: 0.7rem;
+    min-height: 1em;
+    color: var(--SmartThemeEmColor, #aaa);
+}
+
+.uishortcuts-bg-popover-status.uishortcuts-bg-status-pending {
+    color: var(--SmartThemeQuoteColor, #4a9eff);
+}
+
+.uishortcuts-bg-popover-status.uishortcuts-bg-status-ok {
+    color: #2ecc71;
+}
+
+.uishortcuts-bg-popover-status.uishortcuts-bg-status-err {
+    color: #e74c3c;
+}

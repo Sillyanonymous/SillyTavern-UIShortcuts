@@ -16,8 +16,10 @@ import {
 // Optional sub-modules — loaded dynamically so the gallery works standalone
 let GelbooruSearch = null;
 let initMobileEnhancements = null;
+let SetAsBackground = null;
 try { ({ GelbooruSearch } = await import('./gelbooru/index.js')); } catch {}
 try { ({ initAvatarGalleryMobileEnhancements: initMobileEnhancements } = await import('./mobile/index.js')); } catch {}
+try { ({ SetAsBackground } = await import('./set-as-background/index.js')); } catch {}
 
 const GALLERY_STATE_FIELD = 'galleryPanelState';
 
@@ -165,6 +167,9 @@ export class AvatarGallerySelector {
         // Gelbooru search integration
         this.gelbooru = null;
         this.activeTab = 'local'; // 'local' | 'gelbooru'
+
+        // Set-as-background sub-module
+        this.setAsBg = null;
         
         // Panel dragging state
         this.isDragging = false;
@@ -342,6 +347,11 @@ export class AvatarGallerySelector {
             contentEl.parentNode.insertBefore(gelbooruTab, contentEl.nextSibling);
         }
 
+        // Initialize Set-as-background sub-module if available
+        if (SetAsBackground) {
+            this.setAsBg = new SetAsBackground(this);
+        }
+
         this.bindEvents();
     }
 
@@ -435,6 +445,9 @@ export class AvatarGallerySelector {
         // Toggle header buttons visibility (grid & notes only apply to local tab)
         const gridBtn = this.panel.querySelector('.uishortcuts-gallery-grid');
         const notesBtn = this.panel.querySelector('.uishortcuts-gallery-notes');
+
+        // Notify the set-as-bg sub-module so it hides its button on the gelbooru tab.
+        this.setAsBg?.setActive(tabName === 'local');
 
         if (tabName === 'gelbooru') {
             localContent.style.display = 'none';
@@ -793,6 +806,9 @@ export class AvatarGallerySelector {
         // Reset Gelbooru state and switch back to local tab
         if (this.gelbooru) this.gelbooru.reset();
         if (this.activeTab !== 'local') this.switchTab('local', true);
+
+        // Dismiss the set-as-bg popover (but keep the applier alive)
+        this.setAsBg?.onGalleryClose();
     }
 
     _cleanupLoaders() {
@@ -928,6 +944,9 @@ export class AvatarGallerySelector {
         if (characterKey) {
             this.lastSelectedByCharacter.set(characterKey, this.currentImages[index]);
         }
+
+        // Notify sub-modules that the current image changed
+        this.setAsBg?.onImageChanged(src);
 
         counter.textContent = `${index + 1} / ${this.currentImages.length}`;
 
@@ -1402,6 +1421,10 @@ export class AvatarGallerySelector {
         if (this.gelbooru) {
             this.gelbooru.destroy();
             this.gelbooru = null;
+        }
+        if (this.setAsBg) {
+            this.setAsBg.destroy();
+            this.setAsBg = null;
         }
         if (this.panel) {
             const closeBtn = this.panel.querySelector('.uishortcuts-gallery-close');

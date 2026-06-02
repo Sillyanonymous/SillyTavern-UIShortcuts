@@ -21,7 +21,7 @@ function _getPosition() {
 
 function _getTagline(char) {
     const ext = char?.data?.extensions;
-    return ext?.chub?.tagline || ext?.chartavern?.tagline || null;
+    return ext?.chub?.tagline || ext?.chartavern?.tagline || ext?.cl?.tagline || null;
 }
 
 export class CharTagline {
